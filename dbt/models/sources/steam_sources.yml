@@ -1,0 +1,15 @@
+version: 2
+
+sources:
+  - name: steam_raw
+    database: steam-analiz
+    schema: Steam
+
+    tables:
+      - name: players
+      - name: purchased_games
+      - name: history
+      - name: prices
+      - name: games
+      - name: achievements
+      - name: friends
