@@ -14,3 +14,7 @@ dbt/logs/
 *.csv
 .env
 *.json
+
+# Small data files that belong in the repo
+!data/sample_review_ids.csv
+!data/labels/*.csv

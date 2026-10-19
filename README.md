@@ -62,35 +62,55 @@ Key figures in the dataset:
 
 ## 💬 2. Player Review Analysis (NLP)
 
-![Review analysis](images/02_review_analysis.png)
+**Notebook:** [`notebooks/01_review_complaint_classification.ipynb`](notebooks/01_review_complaint_classification.ipynb) ·
+**Rules:** [`src/complaint_rules.py`](src/complaint_rules.py)
 
-**Notebook:** [`notebooks/01_review_complaint_classification.ipynb`](notebooks/01_review_complaint_classification.ipynb)
+**Question:** what do Steam players complain about, and which games get the most complaints?
 
 ### Approach
-1. **Sample:** 20,000 player reviews
-2. **Language filtering:** English reviews detected with `lingua` → **12,158** reviews
-3. **Labeling:** rule-based keyword matching into 8 complaint categories
-   (Bug, Crash, Update, Price, Server, Lag, DLC, Cheater) → **2,284** complaint reviews
-4. **Model:** TF-IDF (5,000 features) + Logistic Regression, stratified 80/20 train-test split
+1. **Sample:** 20,000 player reviews → **11,176 English** reviews (language detection with `lingua`)
+2. **Complaint rules:** 8 categories (Bug, Crash, Update, Price, Server, Lag, DLC, Cheater), multi-label,
+   with whole-word matching, negation handling and VADER sentiment for ambiguous words
+3. **Evaluation:** 350 manually labelled reviews – a 200-review dev set for error analysis and a
+   150-review **held-out test set** never used while writing rules
+4. **Model check:** TF-IDF + Logistic Regression (one-vs-rest) trained on the rule labels
 
-### Results
+### Results (held-out test set)
 
-| Metric | Value |
-|---|---|
-| Accuracy | 61.5% |
-| Macro F1 | 0.47 |
-| Bug — recall / precision | 0.96 / 0.53 |
-| Price — recall / precision | 0.56 / 0.85 |
+![Method comparison](images/03_method_comparison.png)
 
-> ℹ️ The figures above come from the notebook. Some numbers in the dashboard screenshot
-> (1.9K complaints, category shares) differ from the notebook results.
+| Method | Complaint precision | Complaint recall | Complaint F1 | Category micro-F1 |
+|---|---|---|---|---|
+| v1 – original keyword rules | 0.48 | 0.85 | 0.62 | 0.46 |
+| **v3 – improved rules** | **0.67** | **0.78** | **0.72** | **0.58** |
+| TF-IDF + LR (trained on v3 labels) | 0.75 | 0.61 | 0.67 | 0.48 |
+
+The model trained on rule labels does not beat the rules: it can only imitate its teacher.
+
+### Insights
+
+![Complaints by game](images/04_complaints_by_game.png)
+
+- About **10%** of English reviews contain a complaint; **Bug** appears in half of them.
+- Complaint rates by publisher range from **~4–6% (Psyonix, Valve)** to **31% (KRAFTON / PUBG)**.
+- The type of complaint differs by game: **Counter-Strike** → cheaters, **PAYDAY 2** → DLC,
+  **Rainbow Six Siege** → servers, **ARK** → performance.
+
+### What changed from version 1
+Reviewing the first version showed three problems, and fixing them is part of this project:
+- **Language filter:** the detector had English as its only candidate, so it kept 2,722 non-English reviews
+  and dropped 1,740 short English ones.
+- **Labels:** substring keyword matching labelled praise as complaints (*"village"* → Lag, *"no bugs"* → Bug,
+  *"best update ever"* → Update).
+- **Evaluation:** the model was scored against the same keyword labels it learned from, and never saw
+  non-complaint reviews. Version 2 is scored against manual labels.
+
+> ℹ️ The *Oyun Yorum Analizi* dashboard page above still shows the version 1 figures.
 
 ### Limitations & next steps
-- **Labels are rule-based.** The model learns to generalize the keyword rules rather than human judgment.
-  A small manually labeled validation set is the next step.
-- **Class imbalance.** Bug makes up ~42% of complaints. The model tends to default to Bug,
-  which explains its high recall but low precision (Lag is never predicted).
-  Next step: `class_weight="balanced"` and evaluating with macro F1.
+- 350 labelled reviews from one annotator; a second annotator would measure label agreement.
+- Rules miss indirect complaints (*"wish the price was lower"*) and sarcasm.
+- Next: train or prompt a stronger model (zero-shot / LLM) on the labelled data and compare it on the same test set.
 
 ---
 
@@ -113,7 +133,14 @@ are built in dbt and combined into engagement and monetary scores and segments.
 ```text
 .
 ├── README.md
-├── images/                 # Dashboard pages
+├── requirements.txt
+├── images/                 # Dashboard pages and charts
+├── data/
+│   ├── README.md           # How to get the raw data
+│   ├── sample_review_ids.csv
+│   └── labels/             # Manually labelled dev / test sets
+├── src/
+│   └── complaint_rules.py  # Complaint detection rules
 ├── notebooks/
 │   ├── 01_review_complaint_classification.ipynb
 │   └── 02_player_clv_exploration.ipynb
@@ -130,7 +157,7 @@ are built in dbt and combined into engagement and monetary scores and segments.
 
 ## 🛠️ Tech Stack
 
-**Google BigQuery** · **dbt** · **Python** (pandas, scikit-learn, lingua, seaborn) · **Google Colab** · **Looker Studio**
+**Google BigQuery** · **dbt** · **Python** (pandas, scikit-learn, lingua, VADER, matplotlib) · **Google Colab** · **Looker Studio**
 
 ---
 
